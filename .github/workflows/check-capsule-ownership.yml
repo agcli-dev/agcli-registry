@@ -1,0 +1,19 @@
+name: Check Capsule Ownership
+
+on:
+  pull_request:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  ownership:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Check capsule ownership against CODEOWNERS
+        run: ./scripts/check-capsule-ownership.sh "${{ github.event.pull_request.base.sha }}"

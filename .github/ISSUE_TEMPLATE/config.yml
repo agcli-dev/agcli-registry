@@ -1,0 +1,14 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Contributing — add or update packages (existing group)
+    url: https://github.com/agcli-dev/agcli-registry/blob/main/docs/contributing.md
+    about: Declare packages under `capsules/<group>/`; CI derives dist URLs and SHA-256 from GitHub Releases
+  - name: Onboard a new group (first-time publishers)
+    url: https://github.com/agcli-dev/agcli-registry/blob/main/docs/onboard-new-group.md
+    about: Register in `groups.yaml` and CODEOWNERS, then submit capsule YAML in a follow-up PR
+  - name: Capsule release guide (source repository)
+    url: https://github.com/agcli-dev/agcli-registry/blob/main/docs/capsule-release-guide.md
+    about: Tag format, tarball layout, and GitHub Actions to publish `capsule.tar.gz` + `.sha256`
+  - name: Registry YAML specification
+    url: https://github.com/agcli-dev/agcli-registry/blob/main/docs/registry-yaml-spec.md
+    about: Authoritative schema for `groups.yaml` and `capsules/**/*.yaml`

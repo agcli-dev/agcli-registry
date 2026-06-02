@@ -1,0 +1,84 @@
+name: Sync Capsules To OSS
+
+on:
+  workflow_run:
+    workflows: ["Publish Market Index"]
+    types: [completed]
+    branches: [main]
+  schedule:
+    - cron: "0 */6 * * *"
+  workflow_dispatch:
+    inputs:
+      index_url:
+        description: "Index JSON URL (optional)"
+        required: false
+        default: ""
+      dry_run:
+        description: "Dry run only (no upload)"
+        required: true
+        type: boolean
+        default: true
+      max_capsules:
+        description: "Max capsules to process (0 means no limit)"
+        required: false
+        default: "0"
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+concurrency:
+  group: sync-to-oss
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      OSS_ACCESS_KEY_ID: ${{ secrets.OSS_ACCESS_KEY_ID }}
+      OSS_ACCESS_KEY_SECRET: ${{ secrets.OSS_ACCESS_KEY_SECRET }}
+      OSS_ENDPOINT: ${{ secrets.OSS_ENDPOINT }}
+      OSS_BUCKET: ${{ secrets.OSS_BUCKET }}
+      INDEX_URL_DEFAULT: "https://registry.agcli.dev/index.json"
+      DRY_RUN: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == true) && 'true' || 'false' }}
+      MAX_CAPSULES: ${{ github.event.inputs.max_capsules || '0' }}
+      INDEX_URL_INPUT: ${{ github.event.inputs.index_url || '' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Validate required secrets
+        run: |
+          set -euo pipefail
+          test -n "${OSS_ACCESS_KEY_ID}"
+          test -n "${OSS_ACCESS_KEY_SECRET}"
+          test -n "${OSS_ENDPOINT}"
+          test -n "${OSS_BUCKET}"
+
+      - name: Install dependencies
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y jq curl unzip
+
+      - name: Install ossutil
+        run: ./scripts/install-ossutil.sh
+
+      - name: Resolve index URL
+        id: resolve_index
+        run: |
+          set -euo pipefail
+          if [ -n "${INDEX_URL_INPUT}" ]; then
+            echo "index_url=${INDEX_URL_INPUT}" >> "$GITHUB_OUTPUT"
+          else
+            echo "index_url=${INDEX_URL_DEFAULT}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Sync missing capsules to OSS
+        env:
+          INDEX_URL: ${{ steps.resolve_index.outputs.index_url }}
+        run: ./scripts/sync-capsules-to-oss.sh

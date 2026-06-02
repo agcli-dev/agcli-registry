@@ -1,0 +1,4 @@
+name: hello-world
+version: 1.0.0
+summary: "Official agcli sample capsule demonstrating standard package layout"
+repository: "https://github.com/agcli/hello-world"

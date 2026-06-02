@@ -1,0 +1,96 @@
+name: Validate Market Index
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.x"
+
+      - name: Install dependencies
+        run: pip install pyyaml
+
+      - name: Forbid manual registry.lock.json edits
+        if: github.event_name == 'pull_request'
+        run: bash ./scripts/check-registry-lock.sh "${{ github.event.pull_request.base.sha }}"
+
+      - name: Detect changed capsules
+        id: changed
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            BASE="${{ github.event.pull_request.base.sha }}"
+          else
+            BASE="HEAD~1"
+          fi
+          CHANGED=$(python3 - <<'PY' "${BASE}"
+          import subprocess, sys, re
+
+          base = sys.argv[1]
+          try:
+              result = subprocess.check_output(
+                  ["git", "diff", "--name-only", base, "HEAD", "--", "capsules/"],
+                  stderr=subprocess.DEVNULL
+              ).decode().strip()
+          except Exception:
+              print("")
+              sys.exit(0)
+
+          capsules = set()
+          for line in result.splitlines():
+              line = line.strip()
+              if not line or not line.endswith(".yaml"):
+                  continue
+              m = re.match(r"capsules/([^/]+)/([^/]+)\.yaml$", line)
+              if m:
+                  capsules.add(f"{m.group(1)}/{m.group(2)}")
+
+          print(" ".join(sorted(capsules)))
+          PY
+          )
+          echo "capsules=${CHANGED}" >> "$GITHUB_OUTPUT"
+
+      - name: Merge and verify index
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          ARGS=(merge)
+          CHANGED="${{ steps.changed.outputs.capsules }}"
+
+          if [[ "${EVENT_NAME}" == "pull_request" ]]; then
+            BASE_LOCK="/tmp/base-registry.lock.json"
+            if git show "${BASE_SHA}:registry.lock.json" > "${BASE_LOCK}" 2>/dev/null; then
+              echo "loaded lock from ${BASE_SHA}"
+            else
+              echo '{"schema_version":"0.1.0","entries":{}}' > "${BASE_LOCK}"
+              echo "no lock at ${BASE_SHA}; using empty entries"
+            fi
+            ARGS+=(--trust-base-lock-only --base-lock-file "${BASE_LOCK}")
+          fi
+
+          if [[ -n "${CHANGED}" ]]; then
+            for item in ${CHANGED}; do
+              ARGS+=(--force-verify "${item}")
+            done
+          fi
+
+          bash ./scripts/registry.sh "${ARGS[@]}"
+          echo "merge verification passed"

@@ -1,0 +1,215 @@
+name: Publish Market Index
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "capsules/**"
+      - "groups.yaml"
+      - "registry.lock.json"
+      - .github/workflows/publish-index.yml
+      - scripts/registry.sh
+      - scripts/registry_market.py
+      - scripts/registry_release.py
+      - scripts/generate-index-meta.sh
+      - scripts/sign-index.sh
+      - scripts/sync-index-to-oss.sh
+      - keys/registry-signing.pub
+      - scripts/install-ossutil.sh
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "OSS sync dry run only (GitHub Pages still deploys)"
+        required: true
+        type: boolean
+        default: true
+
+concurrency:
+  group: publish-index-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.x"
+
+      - name: Install dependencies
+        run: pip install pyyaml
+
+      - name: Detect changed capsules
+        id: changed
+        run: |
+          set -euo pipefail
+          CHANGED=$(git diff --name-only HEAD~1 HEAD -- capsules/ 2>/dev/null | python3 - <<'PY'
+          import re, sys
+          capsules = set()
+          for line in sys.stdin.read().splitlines():
+              line = line.strip()
+              if not line.endswith(".yaml"):
+                  continue
+              m = re.match(r"capsules/([^/]+)/([^/]+)\.yaml$", line)
+              if m:
+                  capsules.add(f"{m.group(1)}/{m.group(2)}")
+          print(" ".join(sorted(capsules)))
+          PY
+          )
+          echo "capsules=${CHANGED}" >> "$GITHUB_OUTPUT"
+
+      - name: Merge capsules into index.json
+        run: |
+          set -euo pipefail
+          ARGS=(merge --write-lock)
+          CHANGED="${{ steps.changed.outputs.capsules }}"
+          if [[ -n "${CHANGED}" ]]; then
+            for item in ${CHANGED}; do
+              ARGS+=(--force-verify "${item}")
+            done
+          fi
+          bash ./scripts/registry.sh "${ARGS[@]}"
+
+      - name: Generate index metadata
+        run: ./scripts/generate-index-meta.sh
+
+      - name: Verify generated metadata hash
+        run: |
+          set -euo pipefail
+          ACTUAL=$(sha256sum index.json | awk '{print $1}')
+          CLAIMED=$(python3 -c "import json; print(json.load(open('index.meta.json'))['hash'])")
+          if [[ "${ACTUAL}" != "${CLAIMED}" ]]; then
+            echo "Error: index.meta.json hash mismatch" >&2
+            echo "  actual:  ${ACTUAL}" >&2
+            echo "  claimed: ${CLAIMED}" >&2
+            exit 1
+          fi
+          echo "Hash verified: ${ACTUAL}"
+
+      - name: Sign index.json
+        env:
+          REGISTRY_GPG_PRIVATE_KEY: ${{ secrets.REGISTRY_GPG_PRIVATE_KEY }}
+          REGISTRY_GPG_PASSPHRASE: ${{ secrets.REGISTRY_GPG_PASSPHRASE }}
+          REGISTRY_GPG_KEY_ID: ${{ secrets.REGISTRY_GPG_KEY_ID }}
+        run: ./scripts/sign-index.sh
+
+      - name: Upload index artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: index-files
+          path: |
+            index.json
+            index.json.asc
+            index.meta.json
+            registry.lock.json
+          retention-days: 1
+
+  update-lock:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Download index artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: index-files
+
+      - name: Commit registry.lock.json
+        run: |
+          set -euo pipefail
+          cp registry.lock.json "${GITHUB_WORKSPACE}/registry.lock.json"
+          cd "${GITHUB_WORKSPACE}"
+          if git diff --quiet registry.lock.json; then
+            echo "registry.lock.json unchanged"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add registry.lock.json
+          git commit -m "$(cat <<'EOF'
+chore(registry): update registry.lock.json after index publish
+
+EOF
+)"
+          git push
+
+  deploy-pages:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    steps:
+      - name: Download index artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: index-files
+
+      - name: Prepare Pages artifact
+        run: |
+          set -euo pipefail
+          mkdir -p site
+          cp index.json index.json.asc index.meta.json site/
+          ls -la site
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+  sync-oss:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    concurrency:
+      group: sync-index-to-oss
+      cancel-in-progress: true
+    env:
+      OSS_ACCESS_KEY_ID: ${{ secrets.OSS_ACCESS_KEY_ID }}
+      OSS_ACCESS_KEY_SECRET: ${{ secrets.OSS_ACCESS_KEY_SECRET }}
+      OSS_ENDPOINT: ${{ secrets.OSS_ENDPOINT }}
+      OSS_BUCKET: ${{ secrets.OSS_BUCKET }}
+      DRY_RUN: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == true) && 'true' || 'false' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Download index artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: index-files
+
+      - name: Install ossutil
+        run: ./scripts/install-ossutil.sh
+
+      - name: Sync index to OSS
+        run: ./scripts/sync-index-to-oss.sh

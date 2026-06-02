@@ -1,0 +1,16 @@
+# JetBrains IDEs (IntelliJ IDEA, etc.)
+.idea/
+.pytest_cache/
+
+# Environment variables (local development)
+.env
+.env.local
+.env.*.local
+
+# Generated files (CI produces these on-the-fly)
+index.json
+index.meta.json
+index.json.asc
+
+# 
+private-docs/

@@ -1,0 +1,82 @@
+name: Apply for New Group Onboarding
+description: Register a capsules/<group>/ directory in groups.yaml and CODEOWNERS before your first package PR
+title: "[Onboard] group: "
+labels:
+  - onboarding
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Read [onboard-new-group.md](https://github.com/agcli-dev/agcli-registry/blob/main/docs/onboard-new-group.md) first.
+
+        **Two phases:** (1) maintainer merges group registration (`groups.yaml` + CODEOWNERS); (2) you open a separate PR with `capsules/<group>/<name>.yaml` (only `version`, `summary`, `repository` — no `dist` / `integrity`).
+
+        Before the package PR, publish a GitHub Release with `capsule.tar.gz` and `capsule.tar.gz.sha256` per [capsule-release-guide.md](https://github.com/agcli-dev/agcli-registry/blob/main/docs/capsule-release-guide.md).
+
+  - type: input
+    id: group
+    attributes:
+      label: Group name
+      description: Directory under `capsules/`, e.g. `mycompany`. Alphanumeric start; may use `.` `_` `-`; must not start with `_`
+      placeholder: mycompany
+    validations:
+      required: true
+
+  - type: textarea
+    id: github_owners
+    attributes:
+      label: GitHub owners (CODEOWNERS)
+      description: One per line. Individual `@username` or same-org team `@org/team-slug`. These must match `groups.yaml` owners exactly.
+      placeholder: |
+        @zhangsan
+        @myorg/publishers
+    validations:
+      required: true
+
+  - type: dropdown
+    id: tier
+    attributes:
+      label: Requested tier (groups.yaml)
+      description: Maps to `publisher_tier` in the published index. Use `verified` only if you have maintainer approval.
+      options:
+        - community
+        - verified
+      default: 0
+    validations:
+      required: true
+
+  - type: input
+    id: repository
+    attributes:
+      label: Capsule source repository (public GitHub)
+      description: Root URL used in package YAML, e.g. `https://github.com/mycompany/hello-cli`
+      placeholder: https://github.com/mycompany/hello-cli
+    validations:
+      required: true
+
+  - type: input
+    id: first_package
+    attributes:
+      label: Planned first package name (optional)
+      description: Lowercase letters, digits, and hyphens — becomes `capsules/<group>/<name>.yaml`
+      placeholder: hello-cli
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Additional notes
+      description: Team background, why `verified` tier, multiple packages in one repo, etc.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Confirmations
+      options:
+        - label: I understand package YAML PRs come only after the group onboarding PR is merged
+          required: true
+        - label: I will publish GitHub Releases with tag `<name>/v<version>` and assets `capsule.tar.gz` + `capsule.tar.gz.sha256` before the first package PR (or have already done so)
+          required: true
+        - label: I understand external contributors should not combine group onboarding and package YAML in one PR
+          required: false

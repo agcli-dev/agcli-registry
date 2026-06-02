@@ -1,0 +1,61 @@
+# ============================================================
+# Code Owners for agcli-registry
+# ============================================================
+# Rules follow "last match wins". Specific rules override the
+# default when written after it. When adding a new group, add
+# a corresponding line at the end of this file.
+# ============================================================
+
+# Default: all changes require maintainer approval
+*  @agcli-dev/maintainers
+
+# ----------------------------------------------------------
+# Capsule declarations — grouped by directory
+# Format: capsules/<group>/  @user1 @user2 ...
+# PR CI requires an explicit line per changed group (see check-capsule-ownership.yml).
+#
+# Note: CODEOWNERS can only reference teams within the same
+# org. To authorize contributors outside the org, list their
+# individual GitHub usernames directly.
+# For example: capsules/acme-corp/  @jsmith @mchen
+# ----------------------------------------------------------
+
+# Official capsules (maintained by agcli team)
+capsules/official/  @agcli-dev/maintainers
+capsules/dev.agcli/  @agcli-dev/maintainers
+
+# ---------- Third-party groups (uncomment and replace with actual usernames) ----------
+
+# Examples:
+# capsules/globaltech/     @mwatanabe
+
+
+
+
+
+
+
+
+# ----------------------------------------------------------
+# Infrastructure (always controlled by maintainers)
+# ----------------------------------------------------------
+
+# CI / scripts / validation logic
+scripts/       @agcli-dev/maintainers
+.github/       @agcli-dev/maintainers
+
+# docs
+docs/     @agcli-dev/maintainers
+
+# Root config files
+.gitignore     @agcli-dev/maintainers
+README.md      @agcli-dev/maintainers
+requirements-dev.txt      @agcli-dev/maintainers
+groups.yaml           @agcli-dev/maintainers
+registry.lock.json    @agcli-dev/maintainers
+keys/                 @agcli-dev/maintainers
+tests/                @agcli-dev/maintainers
+SECURITY.md           @agcli-dev/maintainers
+CODE_OF_CONDUCT.md    @agcli-dev/maintainers
+LICENSE               @agcli-dev/maintainers
+.editorconfig         @agcli-dev/maintainers
