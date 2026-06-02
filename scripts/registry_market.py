@@ -179,10 +179,7 @@ def is_allowed_tar_member(norm: str, member: tarfile.TarInfo) -> bool:
 
 
 def open_tar_archive(path: str) -> tarfile.TarFile:
-    kwargs: dict = {"mode": "r:gz"}
-    if sys.version_info >= (3, 12):
-        kwargs["filter"] = "data"
-    return tarfile.open(path, **kwargs)
+    return tarfile.open(path, mode="r:gz")
 
 
 def read_limited_text(
