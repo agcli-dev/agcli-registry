@@ -39,6 +39,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       - name: Setup Python
         uses: actions/setup-python@v6
@@ -52,16 +54,27 @@ jobs:
         id: changed
         run: |
           set -euo pipefail
-          CHANGED=$(git diff --name-only HEAD~1 HEAD -- capsules/ 2>/dev/null | python3 - <<'PY'
-          import re, sys
+          CHANGED=$(python3 - <<'PY'
+          import re, subprocess, sys
+
+          try:
+              result = subprocess.check_output(
+                  ["git", "diff", "--name-only", "HEAD~1", "HEAD", "--", "capsules/"],
+                  stderr=subprocess.DEVNULL,
+              ).decode().strip()
+          except Exception:
+              print("")
+              sys.exit(0)
+
           capsules = set()
-          for line in sys.stdin.read().splitlines():
+          for line in result.splitlines():
               line = line.strip()
-              if not line.endswith(".yaml"):
+              if not line or not line.endswith(".yaml"):
                   continue
               m = re.match(r"capsules/([^/]+)/([^/]+)\.yaml$", line)
               if m:
                   capsules.add(f"{m.group(1)}/{m.group(2)}")
+
           print(" ".join(sorted(capsules)))
           PY
           )
@@ -139,11 +152,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add registry.lock.json
-          git commit -m "$(cat <<'EOF'
-chore(registry): update registry.lock.json after index publish
-
-EOF
-)"
+          git commit -m "chore(registry): update registry.lock.json after index publish"
           git push
 
   deploy-pages:
