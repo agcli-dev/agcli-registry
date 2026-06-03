@@ -21,8 +21,8 @@
 # ----------------------------------------------------------
 
 # Official capsules (maintained by agcli team)
-capsules/official/  @agcli-dev/maintainers
-capsules/dev.agcli/  @agcli-dev/maintainers
+#capsules/official/  @agcli-dev/maintainers
+#capsules/dev.agcli/  @agcli-dev/maintainers
 capsules/dev.agcli.showcase/  @agcli-dev/maintainers
 
 # ---------- Third-party groups (uncomment and replace with actual usernames) ----------
