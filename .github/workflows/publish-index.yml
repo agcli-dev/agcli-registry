@@ -143,8 +143,6 @@ jobs:
       - name: Commit registry.lock.json
         run: |
           set -euo pipefail
-          cp registry.lock.json "${GITHUB_WORKSPACE}/registry.lock.json"
-          cd "${GITHUB_WORKSPACE}"
           if git diff --quiet registry.lock.json; then
             echo "registry.lock.json unchanged"
             exit 0
