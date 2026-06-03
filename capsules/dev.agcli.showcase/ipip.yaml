@@ -1,0 +1,4 @@
+name: ipip
+version: 0.0.1
+summary: "Official agcli sample capsule demonstrating standard package layout"
+repository: "https://github.com/agcli-dev/agcli-showcase"

@@ -1,7 +1,7 @@
 schema_version: "0.1.0"
 
 groups:
-  dev.agcli:
+  dev.agcli.showcase:
     tier: verified
     owners:
       - "@agcli-dev/maintainers"
