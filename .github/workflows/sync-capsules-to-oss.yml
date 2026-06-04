@@ -47,6 +47,8 @@ jobs:
       INDEX_URL_DEFAULT: "https://registry.agcli.dev/index.json"
       DRY_RUN: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == true) && 'true' || 'false' }}
       MAX_CAPSULES: ${{ github.event.inputs.max_capsules || '0' }}
+      MAX_VERSIONS_PER_CAPSULE: "3"
+      PRUNE_RETENTION: "true"
       INDEX_URL_INPUT: ${{ github.event.inputs.index_url || '' }}
     steps:
       - name: Checkout

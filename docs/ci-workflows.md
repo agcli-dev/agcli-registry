@@ -254,7 +254,43 @@ This catches tampered or replaced Release assets that an stale lock might otherw
 
 ### Purpose
 
-Mirror **capsule tarballs** (not the index JSON) to Alibaba Cloud OSS for domestic acceleration. Reads the public index (default `https://registry.agcli.dev/index.json`), downloads each `dist.url`, verifies `integrity.sha256`, and uploads content-addressed objects if missing or changed.
+Mirror **capsule tarballs** (not the index JSON) to Alibaba Cloud OSS for domestic acceleration. Reads the public index (default `https://registry.agcli.dev/index.json`), downloads each `dist.url`, verifies `integrity.sha256`, uploads missing objects, then prunes old mirrors.
+
+### OSS object layout
+
+Each capsule tarball is stored at (no `OSS_PREFIX`):
+
+```text
+capsules/<group>/<name>/v<version>/capsule.tar.gz
+```
+
+Example: `capsules/dev.agcli/hello-world/v1.0.0/capsule.tar.gz`
+
+This mirrors the GitHub Release path (`releases/download/<name>/v<version>/capsule.tar.gz`). `dist.url` in `index.json` still points at GitHub; OSS is a mirror only.
+
+### Retention and prune
+
+After uploads, [`sync-capsules-to-oss.sh`](../scripts/sync-capsules-to-oss.sh) runs retention when `PRUNE_RETENTION=true` (default in CI):
+
+| Case | Behavior |
+|------|----------|
+| Package **removed from index** | Delete the entire `capsules/<group>/<name>/` prefix on OSS |
+| Package **still in index** | Keep at most **`MAX_VERSIONS_PER_CAPSULE`** versions (default **3**), ranked by semver (newest first) |
+| Index **current version** | Always kept, even if it would fall outside the top N (e.g. unusual rollback in index) |
+| Invalid version directories | Removed (paths that do not parse as registry semver) |
+
+Set `PRUNE_RETENTION=false` to upload only and skip deletes. `DRY_RUN=true` prints planned uploads and deletes without calling `ossutil cp` / `ossutil rm`.
+
+**Legacy layout:** Older mirrors used `capsules/by-hash/<aa>/<sha>.tgz`. That tree is not migrated automatically; delete it once with `ossutil rm -r oss://<bucket>/capsules/by-hash/ -f` if it is no longer needed.
+
+### Environment (script)
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DRY_RUN` | `true` (local); `false` in CI except manual dry-run dispatch | Skip uploads and deletes |
+| `MAX_VERSIONS_PER_CAPSULE` | `3` | Versions to retain per `group/name` on OSS |
+| `PRUNE_RETENTION` | `true` | Run post-sync prune |
+| `MAX_CAPSULES` | `0` | Limit sync loop; `0` = all entries |
 
 ### Steps
 
@@ -262,7 +298,7 @@ Mirror **capsule tarballs** (not the index JSON) to Alibaba Cloud OSS for domest
 2. Validate OSS secrets.
 3. Install `jq`, `curl`, and [`install-ossutil.sh`](../scripts/install-ossutil.sh).
 4. Resolve index URL (default or workflow input).
-5. Run [`sync-capsules-to-oss.sh`](../scripts/sync-capsules-to-oss.sh).
+5. Run [`sync-capsules-to-oss.sh`](../scripts/sync-capsules-to-oss.sh) (uses `python3` for semver retention).
 
 ### Conditions
 
@@ -272,6 +308,7 @@ Mirror **capsule tarballs** (not the index JSON) to Alibaba Cloud OSS for domest
 
 - Build or deploy `index.json`.
 - Update `registry.lock.json`.
+- Rewrite `dist.url` in the index to OSS URLs.
 
 ### Distinction from publish `sync-oss` job
 

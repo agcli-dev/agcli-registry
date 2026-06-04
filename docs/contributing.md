@@ -227,7 +227,7 @@ After merge to `main`, **Publish Market Index** (when relevant paths change):
 4. Deploys to GitHub Pages (`https://registry.agcli.dev/`)
 5. Syncs index files to OSS
 
-Tarball mirroring to OSS runs via **sync-capsules-to-oss** after a successful publish (or on schedule).
+Tarball mirroring to OSS runs via **sync-capsules-to-oss** after a successful publish (or on schedule). Objects are stored at `capsules/<group>/<name>/v<version>/capsule.tar.gz`; the workflow keeps at most three recent versions per package and removes mirrors for delisted packages (see [ci-workflows.md — sync-capsules-to-oss](ci-workflows.md#sync-capsules-to-ossyml)).
 
 Your package is usually visible within a few minutes. Users can run:
 
