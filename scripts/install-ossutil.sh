@@ -18,11 +18,24 @@ set -euo pipefail
 OSSUTIL_VERSION="${1:-2.2.2}"
 INSTALL_DIR="${2:-/usr/local/bin}"
 
-declare -A KNOWN_HASHES
-KNOWN_HASHES["linux/amd64:2.2.2"]="d4308515689144c6b213d4998787abbd232dd6714fc43dedbe87064c2c34dee1"
-KNOWN_HASHES["linux/arm64:2.2.2"]="dcadb6aa97ddbae523e427e9397a529a04c2f21b4204065ce30e21d44908faa0"
-KNOWN_HASHES["mac/amd64:2.2.2"]="5a0e34e6c439eb0b0ba7b9a67958d5d3b031389437a952a0704520b5acb433d0"
-KNOWN_HASHES["mac/arm64:2.2.2"]="d3fafc4c961f7c58083f6b65a698a169992ba87177001f066ec8c2837a30e23e"
+# Bash 3.2 (macOS default) has no associative arrays; use case lookup instead.
+known_hash_for() {
+  case "$1" in
+    linux/amd64:2.2.2) echo "d4308515689144c6b213d4998787abbd232dd6714fc43dedbe87064c2c34dee1" ;;
+    linux/arm64:2.2.2) echo "dcadb6aa97ddbae523e427e9397a529a04c2f21b4204065ce30e21d44908faa0" ;;
+    mac/amd64:2.2.2) echo "5a0e34e6c439eb0b0ba7b9a67958d5d3b031389437a952a0704520b5acb433d0" ;;
+    mac/arm64:2.2.2) echo "d3fafc4c961f7c58083f6b65a698a169992ba87177001f066ec8c2837a30e23e" ;;
+    *) return 1 ;;
+  esac
+}
+
+sha256_file() {
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$1" | awk '{print $1}'
+  else
+    shasum -a 256 "$1" | awk '{print $1}'
+  fi
+}
 
 OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
 ARCH="$(uname -m)"
@@ -56,9 +69,8 @@ echo "Installing ossutil v${OSSUTIL_VERSION} (${SUFFIX})..."
 
 curl -fsSL "${DOWNLOAD_URL}" -o "${TMPDIR}/ossutil.zip"
 
-if [[ -n "${KNOWN_HASHES[${HASH_KEY}]:-}" ]]; then
-  actual=$(sha256sum "${TMPDIR}/ossutil.zip" | awk '{print $1}')
-  expected="${KNOWN_HASHES[${HASH_KEY}]}"
+if expected="$(known_hash_for "${HASH_KEY}" 2>/dev/null)"; then
+  actual="$(sha256_file "${TMPDIR}/ossutil.zip")"
   if [[ "${actual}" != "${expected}" ]]; then
     echo "Error: sha256 mismatch for ossutil zip" >&2
     echo "  expected: ${expected}" >&2

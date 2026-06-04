@@ -168,7 +168,7 @@ Verify that capsule declarations are structurally valid and that a merged `index
 | Job | Purpose |
 |-----|---------|
 | **build** | Incremental `registry.sh merge --write-lock` (force re-verify capsules changed in the push); [`generate-index-meta.sh`](../scripts/generate-index-meta.sh); verify meta hash; [`sign-index.sh`](../scripts/sign-index.sh) (requires `REGISTRY_GPG_*` secrets); upload artifact (`index.json`, `index.json.asc`, `index.meta.json`, `registry.lock.json`). |
-| **update-lock** | Commit and push `registry.lock.json` as `github-actions[bot]` if it changed (the only automated path allowed to edit the lock). |
+| **update-lock** | Commit and push `registry.lock.json` using a dedicated GitHub App token if the lock changed (the only automated path allowed to edit the lock). See [Registry lock bot](#registry-lock-bot-github-app). |
 | **deploy-pages** | Deploy `index.json`, `index.json.asc`, and `index.meta.json` to **GitHub Pages** (e.g. `https://registry.agcli.dev/`). |
 | **sync-oss** | Upload index files via [`sync-index-to-oss.sh`](../scripts/sync-index-to-oss.sh) (runs in parallel with Pages deploy). |
 
@@ -179,6 +179,36 @@ Verify that capsule declarations are structurally valid and that a merged `index
 ### Related automation
 
 A successful **Publish Market Index** run triggers [sync-capsules-to-oss](#sync-capsules-to-ossyml) via `workflow_run`.
+
+### Registry lock bot (GitHub App)
+
+The `update-lock` job pushes `registry.lock.json` to `main` after each publish. The default `GITHUB_TOKEN` **cannot** bypass repository rulesets (required PR, status checks, etc.), so this job authenticates with a dedicated **GitHub App** installation token via [`actions/create-github-app-token`](https://github.com/actions/create-github-app-token).
+
+**One-time setup (maintainers):**
+
+1. **Create a GitHub App** (org or repo settings → Developer settings → GitHub Apps), for example `agcli-registry-lock`.
+   - **Repository permissions:** Contents → Read and write.
+   - **Webhook:** inactive (not required).
+   - On the app **General** page (scroll down): **Private keys** → Generate a private key (download the `.pem` once).
+   - Note the **App ID** from the About section.
+2. **Install the app** on `agcli-registry` only (Install App → select the org → Only select repositories).
+3. **Repository secrets and variables** (Settings → Secrets and variables → Actions):
+   - Variable `REGISTRY_LOCK_APP_ID` — App ID.
+   - Secret `REGISTRY_LOCK_APP_PRIVATE_KEY` — full PEM private key.
+4. **Ruleset for `main`** (Settings → Rules → Rulesets):
+   - Add the app to the ruleset **Bypass list**, mode **Always allow** (so `update-lock` can push the lock).
+   - Keep **Require a pull request**, **Required status checks**, and Code Owner review for human contributors.
+   - **Do not** enable **Restrict updates** with *only* the app on the bypass list — that blocks normal PR merges to `main`. Turning off Restrict updates still leaves `main` protected via PR, checks, and reviews.
+
+**Workflow behavior:** `update-lock` mints an installation token, checks out `main` with that token, applies the artifact `registry.lock.json`, commits if changed, and pushes. Commit author remains `github-actions[bot]`; the push identity is the app (must match the bypass entry).
+
+**Troubleshooting:**
+
+| Symptom | Likely fix |
+|---------|------------|
+| `GH013` / Cannot update protected ref on push | App missing from ruleset bypass, or push still uses `GITHUB_TOKEN`. |
+| PR merge blocked with same error | **Restrict updates** enabled with bypass limited to the app only — disable it or add maintainer bypass (prefer disabling). |
+| Auth errors in `update-lock` | Verify App ID/PEM secrets, Contents permission, and installation on this repo. |
 
 ---
 
