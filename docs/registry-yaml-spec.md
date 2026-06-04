@@ -386,7 +386,7 @@ After verification, each package YAML becomes one array element:
 | `validate-index` (PR) | Trust only the **base branch** lock (`--trust-base-lock-only`); force verify changed capsules |
 | `audit-index` (scheduled) | `--verify-all` — ignore lock cache, verify every capsule |
 
-**Do not edit** `registry.lock.json` by hand. `publish-index` commits updates after a successful publish. PRs that modify it fail [`check-registry-lock.sh`](../scripts/check-registry-lock.sh).
+**Do not edit** `registry.lock.json` by hand. `publish-index` commits updates after a successful publish (via a dedicated GitHub App; see [ci-workflows.md — Registry lock bot](ci-workflows.md#registry-lock-bot-github-app)). PRs that modify it fail [`check-registry-lock.sh`](../scripts/check-registry-lock.sh).
 
 ### 7.1 Lock entry example
 
