@@ -12,26 +12,23 @@
 #
 # Environment:
 #   OSS_ACCESS_KEY_ID, OSS_ACCESS_KEY_SECRET, OSS_ENDPOINT, OSS_BUCKET — required
+#   OSS_REGION       — optional; derived from OSS_ENDPOINT if unset (ossutil 2.x V4 signing)
 #   OSS_PREFIX       — optional key prefix (e.g. "market" → oss://<bucket>/market/index.json)
 #   DRY_RUN          — "true" to skip upload (default: false)
 #
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=ossutil-env.sh
+source "${SCRIPT_DIR}/ossutil-env.sh"
+
+ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 INDEX_FILE="${ROOT_DIR}/index.json"
 SIG_FILE="${ROOT_DIR}/index.json.asc"
 META_FILE="${ROOT_DIR}/index.meta.json"
 DRY_RUN="${DRY_RUN:-false}"
 
-missing=()
-for var in OSS_ACCESS_KEY_ID OSS_ACCESS_KEY_SECRET OSS_ENDPOINT OSS_BUCKET; do
-  if [[ -z "${!var:-}" ]]; then
-    missing+=("$var")
-  fi
-done
-
-if [[ ${#missing[@]} -gt 0 ]]; then
-  echo "Error: missing required environment variables: ${missing[*]}" >&2
+if ! ossutil_ensure_env; then
   echo "" >&2
   echo "See docs/setupdocs/oss-and-cdn-setup.md for configuration instructions." >&2
   exit 1
@@ -94,6 +91,7 @@ upload_file() {
 echo ""
 echo "Syncing index files to OSS..."
 echo "  Bucket: ${OSS_BUCKET}"
+echo "  Region: ${OSS_REGION}"
 echo "  Endpoint: ${OSS_ENDPOINT}"
 echo "  DRY_RUN: ${DRY_RUN}"
 echo ""

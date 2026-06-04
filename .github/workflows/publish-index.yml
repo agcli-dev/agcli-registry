@@ -14,6 +14,7 @@ on:
       - scripts/generate-index-meta.sh
       - scripts/sign-index.sh
       - scripts/sync-index-to-oss.sh
+      - scripts/ossutil-env.sh
       - keys/registry-signing.pub
       - scripts/install-ossutil.sh
   workflow_dispatch:
@@ -211,6 +212,7 @@ jobs:
       OSS_ACCESS_KEY_ID: ${{ secrets.OSS_ACCESS_KEY_ID }}
       OSS_ACCESS_KEY_SECRET: ${{ secrets.OSS_ACCESS_KEY_SECRET }}
       OSS_ENDPOINT: ${{ secrets.OSS_ENDPOINT }}
+      OSS_REGION: ${{ secrets.OSS_REGION }}
       OSS_BUCKET: ${{ secrets.OSS_BUCKET }}
       DRY_RUN: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == true) && 'true' || 'false' }}
     steps:

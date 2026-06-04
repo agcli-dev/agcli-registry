@@ -17,28 +17,25 @@
 #
 # Environment:
 #   OSS_ACCESS_KEY_ID, OSS_ACCESS_KEY_SECRET, OSS_ENDPOINT, OSS_BUCKET — required
-#   INDEX_URL      — optional HTTPS URL to fetch index.json
-#   DRY_RUN        — "true" to print planned uploads only (default: true)
-#   MAX_CAPSULES   — max entries to process; 0 = no limit
+#   OSS_REGION       — optional; derived from OSS_ENDPOINT if unset (ossutil 2.x V4 signing)
+#   INDEX_URL        — optional HTTPS URL to fetch index.json
+#   DRY_RUN          — "true" to print planned uploads only (default: true)
+#   MAX_CAPSULES     — max entries to process; 0 = no limit
 #
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=ossutil-env.sh
+source "${SCRIPT_DIR}/ossutil-env.sh"
+
+ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 INDEX_FILE="${ROOT_DIR}/index.json"
 
 DRY_RUN="${DRY_RUN:-true}"
 MAX_CAPSULES="${MAX_CAPSULES:-0}"
 INDEX_URL="${INDEX_URL:-}"
 
-missing=()
-for var in OSS_ACCESS_KEY_ID OSS_ACCESS_KEY_SECRET OSS_ENDPOINT OSS_BUCKET; do
-  if [[ -z "${!var:-}" ]]; then
-    missing+=("$var")
-  fi
-done
-
-if [[ ${#missing[@]} -gt 0 ]]; then
-  echo "Error: missing required environment variables: ${missing[*]}" >&2
+if ! ossutil_ensure_env; then
   exit 1
 fi
 
@@ -49,6 +46,8 @@ if ! command -v ossutil &>/dev/null; then
 fi
 
 echo "Using ossutil ($(ossutil version 2>&1 | head -1))"
+echo "  Region: ${OSS_REGION}"
+echo "  Endpoint: ${OSS_ENDPOINT}"
 
 WORK_DIR="$(mktemp -d)"
 trap 'rm -rf "${WORK_DIR}"' EXIT
@@ -116,23 +115,27 @@ else
     fi
 
     if ! curl -fL --connect-timeout 5 --max-time 120 "${url}" -o "${tmp_file}"; then
-      echo "Download failed: ${url}"
+      echo "Download failed: ${url}" >&2
       failed=$((failed + 1))
       rm -f "${tmp_file}"
       continue
     fi
 
-    actual_sha=$(sha256sum "${tmp_file}" | awk '{print $1}')
+    actual_sha=$(sha256_file "${tmp_file}")
     if [[ "${actual_sha}" != "${sha}" ]]; then
-      echo "Integrity mismatch for ${name}@${version}: expected=${sha}, got=${actual_sha}"
+      echo "Integrity mismatch for ${name}@${version}: expected=${sha}, got=${actual_sha}" >&2
       failed=$((failed + 1))
       rm -f "${tmp_file}"
       continue
     fi
 
-    if ossutil cp "${tmp_file}" "${oss_uri}" >/dev/null; then
+    if ossutil cp "${tmp_file}" "${oss_uri}" \
+      --force \
+      --content-type "application/gzip" \
+      --cache-control "public, max-age=31536000, immutable"; then
       uploaded=$((uploaded + 1))
     else
+      echo "Upload failed: ${oss_uri}" >&2
       failed=$((failed + 1))
     fi
     rm -f "${tmp_file}"

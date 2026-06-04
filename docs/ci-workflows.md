@@ -295,6 +295,7 @@ Mirror **capsule tarballs** (not the index JSON) to Alibaba Cloud OSS for domest
 | [`verify-index-signature.sh`](../scripts/verify-index-signature.sh) | local / debugging |
 | [`sync-index-to-oss.sh`](../scripts/sync-index-to-oss.sh) | publish-index |
 | [`sync-capsules-to-oss.sh`](../scripts/sync-capsules-to-oss.sh) | sync-capsules-to-oss |
+| [`ossutil-env.sh`](../scripts/ossutil-env.sh) | sync-index-to-oss, sync-capsules-to-oss |
 | [`install-ossutil.sh`](../scripts/install-ossutil.sh) | publish-index, sync-capsules-to-oss |
 
 For lock file semantics and schema, see [registry-yaml-spec.md §7](registry-yaml-spec.md#7-registrylockjson-release-proofs).

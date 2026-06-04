@@ -42,6 +42,7 @@ jobs:
       OSS_ACCESS_KEY_ID: ${{ secrets.OSS_ACCESS_KEY_ID }}
       OSS_ACCESS_KEY_SECRET: ${{ secrets.OSS_ACCESS_KEY_SECRET }}
       OSS_ENDPOINT: ${{ secrets.OSS_ENDPOINT }}
+      OSS_REGION: ${{ secrets.OSS_REGION }}
       OSS_BUCKET: ${{ secrets.OSS_BUCKET }}
       INDEX_URL_DEFAULT: "https://registry.agcli.dev/index.json"
       DRY_RUN: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == true) && 'true' || 'false' }}
