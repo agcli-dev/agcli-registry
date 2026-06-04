@@ -1,4 +1,16 @@
 {
   "schema_version": "0.1.0",
-  "entries": {}
+  "entries": {
+    "dev.agcli.showcase/ipip": {
+      "version": "0.0.1",
+      "repository": "https://github.com/agcli-dev/agcli-showcase",
+      "dist": {
+        "type": "tarball",
+        "url": "https://github.com/agcli-dev/agcli-showcase/releases/download/ipip/v0.0.1/capsule.tar.gz"
+      },
+      "integrity": {
+        "sha256": "b16bebc51d92213b073a61c28b933ae6d504ff0ea4a4bd118e14ca7bc3014094"
+      }
+    }
+  }
 }
