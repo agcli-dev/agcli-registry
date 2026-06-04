@@ -117,7 +117,7 @@ jobs:
         run: ./scripts/sign-index.sh
 
       - name: Upload index artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: index-files
           path: |
@@ -144,7 +144,7 @@ jobs:
           token: ${{ steps.app-token.outputs.token }}
 
       - name: Download index artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: index-files
 
@@ -176,7 +176,7 @@ jobs:
       cancel-in-progress: false
     steps:
       - name: Download index artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: index-files
 
@@ -220,7 +220,7 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Download index artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: index-files
 
