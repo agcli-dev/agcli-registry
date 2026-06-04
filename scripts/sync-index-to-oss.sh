@@ -8,7 +8,7 @@
 #
 # Flow:
 #   1. Resolve object keys: index.json and index.meta.json at bucket root, or under OSS_PREFIX/
-#   2. ossutil cp both files with Cache-Control: no-cache (private objects; CDN uses OSS private origin)
+#   2. ossutil cp both files with --cache-control no-cache (private objects; CDN uses OSS private origin)
 #
 # Environment:
 #   OSS_ACCESS_KEY_ID, OSS_ACCESS_KEY_SECRET, OSS_ENDPOINT, OSS_BUCKET — required
@@ -86,7 +86,7 @@ upload_file() {
 
   ossutil cp "${src}" "${dst}" \
     --force \
-    --meta "Cache-Control:no-cache"
+    --cache-control "no-cache"
 
   echo "  OK"
 }
